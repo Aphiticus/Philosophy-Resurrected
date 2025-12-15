@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Private Music Generator</title>
+  <style>
+    :root {
+      --primary: #6d28d9;
+      --success: #10b981;
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --text: #1e293b;
+      --border: #e2e8f0;
+      --accent: #8b5cf6;
+    }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; line-height: 1.6; }
+    .container { max-width: 900px; margin: 0 auto; }
+    header { text-align: center; padding: 2rem 1rem; background: var(--card); border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); margin-bottom: 2rem; }
+    h1 { margin: 0; color: var(--primary); }
+    .api-key-box { margin: 1.5rem 0; display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; align-items: center; }
+    input#api-key { padding: 12px; width: 320px; border: 2px solid var(--border); border-radius: 8px; font-size: 16px; }
+    button { padding: 12px 20px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.2s; }
+    button:hover { background: #5b21b6; }
+    button:disabled { background: #94a3b8; cursor: not-allowed; }
+    button.success { background: var(--success); }
+    button.accent { background: var(--accent); }
+    .credits { margin-top: 1rem; font-weight: bold; color: var(--success); }
+
+    .form-card, .personas-card { background: var(--card); padding: 2rem; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); margin-bottom: 2rem; }
+    label { display: block; margin-top: 1.5rem; font-weight: 600; }
+    input, textarea, select { width: 100%; padding: 12px; margin-top: 6px; border: 2px solid var(--border); border-radius: 8px; font-size: 16px; box-sizing: border-box; }
+    textarea { min-height: 160px; resize: vertical; font-family: monospace; }
+    .checkbox-group { display: flex; gap: 1.5rem; margin: 1rem 0; flex-wrap: wrap; align-items: center; }
+    details { margin-top: 1.5rem; border: 1px solid var(--border); border-radius: 8px; padding: 1rem; }
+    summary { font-weight: 600; cursor: pointer; }
+    .generate-btn { margin-top: 2rem; padding: 16px; font-size: 18px; background: var(--success); }
+    .generate-btn:hover { background: #059669; }
+
+    .persona-item {
+      background: #f1f5f9; padding: 12px; border-radius: 12px; margin: 10px 0;
+      display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;
+    }
+    .persona-item audio { width: 200px; height: 34px; }
+    .persona-actions button { padding: 6px 12px; font-size: 0.9rem; }
+    .selected-persona { background: #e0e7ff !important; border: 2px solid var(--primary); }
+    #results { margin-top: 2rem; padding: 2rem; background: var(--card); border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); display: none; }
+    .download-group { display: flex; gap: 1rem; flex-wrap: wrap; margin: 1rem 0; }
+    .spinner { display: inline-block; width: 20px; height: 20px; border: 3px solid #f3f3f3; border-top: 3px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin-left: 10px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    progress { width: 100%; height: 12px; border-radius: 6px; }
+    footer { text-align: center; margin-top: 3rem; color: #64748b; font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div style="margin-bottom:1rem;">
+      <a href="/admin" style="color:#6d28d9; font-weight:bold; font-size:1.1rem;">← Back to Admin Panel</a>
+    </div>
+    <header>
+      <h1>Private Music Generator</h1>
+      <p>Create songs • Save voices as Personas • Make more music with the same voice instantly</p>
+      <div class="api-key-box">
+        <input type="password" id="api-key" placeholder="Enter your MusicAPI Bearer token" />
+        <button id="save-key">Save Key</button>
+        <button id="check-credits">Check Credits</button>
+      </div>
+      <div class="credits" id="credits-info">Enter your API key to begin</div>
+    </header>
+    <div class="personas-card">
+      <h2>My Personas <small>(saved voices)</small></h2>
+      <div id="persona-list">No personas saved yet. Generate a song and click "Save as Persona"!</div>
+      <p><em>Tip: Select a persona below → then generate → it will sound exactly like that voice!</em></p>
+    </div>
+    <div class="form-card">
+      <form id="sonic-form">
+        <label>Title (optional)</label>
+        <input type="text" id="title" placeholder="My amazing song title">
+        <label>Tags / Style (optional)</label>
+        <input type="text" id="tags" placeholder="pop, emotional, piano, dreamy">
+        <label>Lyrics or Prompt (required)</label>
+        <textarea id="prompt" placeholder="[Verse 1]\nI walk alone under neon lights...\n[Chorus]\nWe rise, we fall, together..." required></textarea>
+        <div class="checkbox-group">
+          <label><input type="checkbox" id="custom-mode" checked> Custom Mode</label>
+          <label><input type="checkbox" id="instrumental"> Instrumental Only</label>
+        </div>
+        <label>Model Version</label>
+        <select id="mv">
+          <option value="sonic-v5">Sonic v5 (best quality)</option>
+          <option value="sonic-v4-5-plus">Sonic v4.5+</option>
+          <option value="sonic-v4-5">Sonic v4.5</option>
+        </select>
+        <details>
+          <summary>Advanced Options</summary>
+          <label>Task Type</label>
+          <select id="task-type">
+            <option value="create_music">Create New Song</option>
+            <option value="persona_music" selected>Use Selected Persona (voice match)</option>
+            <option value="extend_music">Extend Existing Song</option>
+            <option value="cover_music">Cover / Remix</option>
+          </select>
+          <label>Clip ID (for extend/cover)</label>
+          <input type="text" id="continue-clip-id" placeholder="Only needed for extend">
+          <label>Vocal Gender (v4.5+)</label>
+          <select id="vocal-gender">
+            <option value="">Auto</option>
+            <option value="f">Female</option>
+            <option value="m">Male</option>
+          </select>
+          <label>Style Weight</label>
+          <input type="range" id="style-weight" min="0" max="1" step="0.05" value="0.7">
+          <label>Weirdness</label>
+          <input type="range" id="weirdness" min="0" max="1" step="0.05" value="0.4">
+          <label>Negative Tags</label>
+          <input type="text" id="negative-tags" placeholder="no screaming, no distortion">
+        </details>
+        <button type="submit" class="generate-btn" id="generate-btn" disabled>
+          Generate with Sonic <span id="persona-indicator"></span>
+        </button>
+      </form>
+    </div>
+    <div id="results">
+      <h2>Generated Song</h2>
+      <p><strong>Status:</strong> <span id="status">Preparing...</span> <span class="spinner" id="spinner"></span></p>
+      <progress id="progress" value="0" max="100"></progress>
+      <audio id="audio-player" controls preload="none"></audio>
+      <pre id="lyrics-output" style="background:#f1f5f9;padding:1rem;border-radius:8px;margin:1rem 0;"></pre>
+      <div class="download-group">
+        <button id="download-mp3">Download MP3</button>
+        <button id="download-wav">Download WAV</button>
+        <button id="download-stems">Download Stems</button>
+        <button id="download-midi" disabled>Download MIDI</button>
+        <button id="save-as-persona" class="accent">Save as Persona</button>
+      </div>
+      <p><strong>Task ID:</strong> <code id="task-id"></code> | <strong>Clip ID:</strong> <code id="clip-id"></code></p>
+      <button id="new-song">New Song</button>
+    </div>
+    <footer>
+      <p>Sonic + Personas • Powered by <a href="https://musicapi.ai" target="_blank">MusicAPI</a></p>
+    </footer>
+  </div>
+  <script>
+    const API_BASE = 'https://api.musicapi.ai/api/v1/sonic';
+    let apiKey = localStorage.getItem('sonicApiKey') || '';
+    let currentTaskId = '';
+    let currentClipId = '';
+    let pollTimer;
+    let selectedPersona = null; 
+    const personas = JSON.parse(localStorage.getItem('sonicPersonas') || '[]');
+    renderPersonas();
+    document.getElementById('api-key').value = apiKey;
+    if (apiKey) enableGeneration();
+    document.getElementById('save-key').onclick = () => {
+      apiKey = document.getElementById('api-key').value.trim();
+      if (apiKey) {
+        localStorage.setItem('sonicApiKey', apiKey);
+        enableGeneration();
+        alert('API key saved!');
+      }
+    };
+
+    document.getElementById('check-credits').onclick = async () => {
+      if (!apiKey) return alert('Save key first');
+      const res = await fetch('https://api.musicapi.ai/api/v1/get-credits', { headers: { Authorization: `Bearer ${apiKey}` } });
+      const data = await res.json();
+      document.getElementById('credits-info').textContent = res.ok ?
+        `Credits: ${data.credits} | Extra: ${data.extra_credits} | Total: ${data.credits + data.extra_credits}` :
+        'Invalid key';
+    };
+
+    function enableGeneration() {
+      document.getElementById('generate-btn').disabled = false;
+      document.getElementById('credits-info').textContent = 'Ready!';
+    }
+    function renderPersonas() {
+      const list = document.getElementById('persona-list');
+      if (personas.length === 0) {
+        list.innerHTML = '<em>No personas saved yet. Generate a song and click "Save as Persona"!</em>';
+        return;
+      }
+      list.innerHTML = personas.map((p, i) => `
+        <div class="persona-item ${selectedPersona?.clip_id === p.clip_id ? 'selected-persona' : ''}">
+          <div>
+            <strong>${p.name}</strong><br>
+            <audio src="${p.audio_url}" controls></audio>
+          </div>
+          <div class="persona-actions">
+            <button onclick="selectPersona(${i})">Use Voice</button>
+            <button onclick="deletePersona(${i})">Delete</button>
+          </div>
+        </div>
+      `).join('');
+    }
+    window.selectPersona = (i) => {
+      selectedPersona = personas[i];
+      renderPersonas();
+      document.getElementById('task-type').value = 'persona_music';
+      document.getElementById('persona-indicator').textContent = `🎤 Using: ${selectedPersona.name}`;
+      alert(`Now generating with voice: ${selectedPersona.name}`);
+    };
+    window.deletePersona = (i) => {
+      if (confirm('Delete this persona?')) {
+        personas.splice(i, 1);
+        localStorage.setItem('sonicPersonas', JSON.stringify(personas));
+        if (selectedPersona?.clip_id === personas[i]?.clip_id) selectedPersona = null;
+        renderPersonas();
+      }
+    };
+    document.getElementById('save-as-persona').onclick = () => {
+      const name = prompt('Name this voice/persona:', document.getElementById('title').value || 'My Voice');
+      if (!name) return;
+      const audioUrl = document.getElementById('audio-player').src;
+      if (!audioUrl || !currentClipId) return alert('No song to save');
+      personas.push({ name, clip_id: currentClipId, audio_url: audioUrl });
+      localStorage.setItem('sonicPersonas', JSON.stringify(personas));
+      renderPersonas();
+      alert(`Persona "${name}" saved!`);
+    };
+    document.getElementById('sonic-form').onsubmit = async e => {
+      e.preventDefault();
+      if (!apiKey) return alert('Save API key');
+      const payload = {
+        mv: document.getElementById('mv').value,
+        prompt: document.getElementById('prompt').value.trim(),
+        title: document.getElementById('title').value.trim() || undefined,
+        tags: document.getElementById('tags').value.trim() || undefined,
+        custom_mode: document.getElementById('custom-mode').checked,
+        make_instrumental: document.getElementById('instrumental').checked,
+        task_type: document.getElementById('task-type').value,
+        continue_clip_id: selectedPersona?.clip_id || document.getElementById('continue-clip-id').value.trim() || undefined,
+        vocal_gender: document.getElementById('vocal-gender').value || undefined,
+        style_weight: parseFloat(document.getElementById('style-weight').value),
+        weirdness_constraint: parseFloat(document.getElementById('weirdness').value),
+        negative_tags: document.getElementById('negative-tags').value.trim() || undefined,
+      };
+      document.getElementById('results').style.display = 'block';
+      document.getElementById('status').textContent = 'Generating...';
+      document.getElementById('progress').value = 10;
+      try {
+        const res = await fetch(`${API_BASE}/create`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'API error');
+        currentTaskId = data.task_id;
+        document.getElementById('task-id').textContent = currentTaskId;
+        pollStatus();
+      } catch (err) {
+        document.getElementById('status').textContent = 'Error: ' + err.message;
+      }
+    };
+    async function pollStatus() {
+      clearInterval(pollTimer);
+      pollTimer = setInterval(async () => {
+        const res = await fetch(`${API_BASE}/task/${currentTaskId}`, { headers: { Authorization: `Bearer ${apiKey}` } });
+        const data = await res.json();
+        const progress = data.progress || (data.status === 'running' ? 70 : 30);
+        document.getElementById('progress').value = progress;
+        document.getElementById('status').textContent = `Processing... ${data.status || ''}`;
+        if (data.status === 'succeeded') {
+          clearInterval(pollTimer);
+          document.getElementById('status').textContent = 'Complete!';
+          const clip = data.data?.[0] || data;
+          currentClipId = clip.clip_id;
+          document.getElementById('clip-id').textContent = currentClipId;
+          document.getElementById('audio-player').src = clip.audio_url;
+          document.getElementById('lyrics-output').textContent = clip.lyrics || 'No lyrics';
+          document.getElementById('download-midi').disabled = false;
+          document.getElementById('download-midi').onclick = () => downloadMidi(currentClipId);
+          document.getElementById('download-mp3').onclick = () => window.open(clip.audio_url);
+          ['wav', 'stems'].forEach(t => {
+            document.getElementById(`download-${t}`).onclick = () => downloadFormat(t, currentClipId);
+          });
+        }
+      }, 4000);
+    }
+    async function downloadFormat(type, clipId) {
+      const res = await fetch(`${API_BASE}/${type}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clip_id: clipId })
+      });
+      const d = await res.json();
+      window.open(d.data?.[0]?.url || d.url, '_blank');
+    }
+    async function downloadMidi(clipId) {
+      const res = await fetch(`${API_BASE}/midi`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clip_id: clipId })
+      });
+      const d = await res.json();
+      window.open(d.data.midi_url, '_blank');
+    }
+    document.getElementById('new-song').onclick = () => {
+      document.getElementById('results').style.display = 'none';
+      document.getElementById('sonic-form').reset();
+      document.getElementById('custom-mode').checked = true;
+      clearInterval(pollTimer);
+      document.getElementById('audio-player').src = '';
+      currentClipId = '';
+    };
+  </script>
+</body>
+</html>

@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1"> 
+    <title>Admin Panel – Philosophy Resurrected</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+
+<body class="admin-body">
+    <aside class="sidebar">
+        <h2 class="logo">PR Admin</h2>
+        <nav>
+            <button class="nav-btn" onclick="switchTab('dashboard')">Dashboard</button>
+            <button class="nav-btn" onclick="switchTab('albums')">Albums</button>
+            <button class="nav-btn" onclick="switchTab('videos')">Videos</button>
+            <button class="nav-btn" onclick="switchTab('media')">Media</button>
+            <a href="/generator" style="margin-top:18px; color:#00ffe7; font-weight:bold; font-size:1.05rem; text-decoration:none; display:block;">Generator</a>
+        </nav>
+    </aside>
+    <main class="content">
+        <section id="dashboard" class="tab active">
+            <h1>Admin Dashboard</h1>
+            <p>Welcome to the control panel for Philosophy Resurrected.</p>
+            <div style="display:grid; gap:20px; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); margin-top:24px;">
+                <div class="admin-card">
+                    <h2>Featured Works</h2>
+                    <p>Select the video highlighted on the homepage hero.</p>
+                    <select id="featuredVideoSelect">
+                        <option value="">Select a video</option>
+                    </select>
+                    <button class="modal-save-btn" style="margin-top:12px;" onclick="saveFeaturedVideo()">Save Featured Video</button>
+                    <div id="featuredVideoPreview" class="small" style="margin-top:10px;">No video selected.</div>
+                </div>
+                <div class="admin-card">
+                    <h2>Bulk Drag & Drop Album</h2>
+                    <p>Upload a full album with cover and multiple tracks in one go.</p>
+                    <button class="modal-save-btn" onclick="openBulkAlbumModal()">Open Bulk Uploader</button>
+                </div>
+            </div>
+        </section>
+        <section id="albums" class="tab">
+            <div class="header-row">
+                <h1>Albums</h1>
+                <div>
+                    <button class="add-btn" onclick="openAlbumModal()">+ Add Album</button>
+                    <button class="add-btn" onclick="openBulkAlbumModal()">Drag & Drop Album</button>
+                </div>
+            </div>
+            <div id="albumsList" class="item-list"></div>
+        </section>
+        <section id="videos" class="tab">
+            <div class="header-row">
+                <h1>Music Videos</h1>
+                <button class="add-btn" onclick="openVideoModal(false)">+ Add Video</button>
+            </div>
+            <div id="videosList" class="item-list"></div>
+        </section>
+        <section id="media" class="tab">
+            <div class="header-row">
+                <h1>Image Gallery</h1>
+                <button class="add-btn" onclick="openMediaModal()">+ Upload Image</button>
+            </div>
+            <div id="mediaList" class="item-list"></div>
+        </section>
+    </main>
+
+    <div id="albumModal" class="modal">
+        <div class="modal-content">
+            <h2 id="albumModalTitle">Add / Edit Album</h2>
+            <input type="hidden" id="albumId">
+            <label>Album Title</label>
+            <input type="text" id="albumTitle">
+            <label>Album Image</label>
+            <input type="file" id="albumImage">
+            <label>Description</label>
+            <textarea id="albumDesc"></textarea>
+            <button class="modal-save-btn" onclick="saveAlbum()">Save Album</button>
+            <button class="modal-close-btn" onclick="closeModal('albumModal')">Cancel</button>
+        </div>
+    </div>
+
+    <div id="videoModal" class="modal">
+        <div class="modal-content">
+            <h2 id="videoModalTitle">Add / Edit Video</h2>
+            <input type="hidden" id="videoId">
+            <label>Title</label>
+            <input type="text" id="videoTitle">
+            <label>Video File (.mp4)</label>
+            <input type="file" id="videoFile">
+            <label>Description</label>
+            <textarea id="videoDesc"></textarea>
+            <label>Thumbnail (URL)</label>
+            <input type="text" id="videoThumbnail">
+            <button class="modal-save-btn" onclick="saveVideo()">Save Video</button>
+            <button class="modal-close-btn" onclick="closeModal('videoModal')">Cancel</button>
+        </div>
+    </div>
+
+    <div id="trackModal" class="modal">
+        <div class="modal-content">
+            <h2>Add Track</h2>
+            <input type="hidden" id="trackAlbumId">
+            <label>Track Title</label>
+            <input type="text" id="trackTitle">
+            <label>Audio File</label>
+            <input type="file" id="trackFile" accept="audio/*">
+            <button class="modal-save-btn" onclick="saveTrack()">Save Track</button>
+            <button class="modal-close-btn" onclick="closeTrackModal()">Cancel</button>
+        </div>
+    </div>
+
+    <div id="mediaModal" class="modal">
+        <div class="modal-content">
+            <h2>Upload Image</h2>
+            <label>Title</label>
+            <input type="text" id="mediaTitle">
+            <label>File</label>
+            <input type="file" id="mediaFile" accept="image/*">
+            <button class="modal-save-btn" onclick="saveMedia()">Upload</button>
+            <button class="modal-close-btn" onclick="closeModal('mediaModal')">Cancel</button>
+        </div>
+    </div>
+
+    <div id="bulkAlbumModal" class="modal">
+        <div class="modal-content" style="max-width:520px;">
+            <h2>Bulk Add Album</h2>
+            <label>Album Title</label>
+            <input type="text" id="bulkAlbumTitle">
+            <label>Description</label>
+            <textarea id="bulkAlbumDesc"></textarea>
+            <label>Cover Image (optional)</label>
+            <input type="file" id="bulkAlbumCover" accept="image/*">
+            <div id="trackDropZone" style="border:2px dashed #555;padding:12px;border-radius:10px;text-align:center;cursor:pointer;">
+                Drop audio files here or click to select
+                <input type="file" id="bulkTrackInput" accept="audio/*" multiple style="display:none;">
+            </div>
+            <ul id="bulkTrackList" style="max-height:200px;overflow:auto;padding-left:0;list-style:none;margin-top:10px;"></ul>
+            <button class="modal-save-btn" onclick="uploadBulkAlbum()">Upload Album</button>
+            <button class="modal-close-btn" onclick="closeModal('bulkAlbumModal')">Cancel</button>
+        </div>
+    </div>
+
+    <script>
+        let adminPin = new URLSearchParams(window.location.search).get('pin') || '';
+        let featuredVideoId = null;
+        let videosCache = [];
+        let bulkTracks = [];
+
+        function fetchWithPin(url, options = {}) {
+            options.headers = options.headers || {};
+            options.headers['X-Admin-Pin'] = adminPin;
+            return fetch(url, options);
+        }
+
+        function switchTab(id) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+        }
+
+        async function loadAlbums() {
+            let res = await fetch('/api/albums');
+            let data = await res.json();
+
+            let container = document.getElementById('albumsList');
+            container.innerHTML = '';
+
+            data.forEach(album => {
+                container.innerHTML += `
+                    <div class="admin-card">
+                        <img src="${album.image}" class="thumb">
+                        <h3>${album.title}</h3>
+                        <p>${album.description}</p>
+                        <button onclick="editAlbum(${album.id})">Edit</button>
+                        <button onclick="deleteAlbum(${album.id})" class="delete-btn">Delete</button>
+                        <button onclick="openTrackModal(${album.id})">+ Add Track</button>
+                        <ul class="track-sortable" data-album-id="${album.id}">
+                            ${album.tracks.map(track => `
+                                <li class="sortable-item" draggable="true" data-id="${track.id}">
+                                    <span class="handle">↕</span>
+                                    <span>${track.track_number}. ${track.title}</span>
+                                    <audio controls src="${track.path}"></audio>
+                                    <button onclick="deleteTrack(${track.id}, ${album.id})" class="delete-btn">Delete Track</button>
+                                </li>
+                            `).join('')}
+                        </ul>
+                        <button class="save-btn" onclick="saveTrackOrder(${album.id})">Save Track Order</button>
+                    </div>
+                `;
+            });
+            enableAlbumTrackSorting();
+        }
+        async function loadVideos() {
+            let res = await fetch('/api/videos');
+            let data = await res.json();
+            videosCache = data;
+            populateFeaturedVideoSelect(data);
+            let container = document.getElementById('videosList');
+            container.innerHTML = '';
+
+            data.forEach(video => {
+                container.innerHTML += `
+                    <div class="admin-card">
+                        <video src="${video.path}" class="thumb" controls></video>
+                        <h3>${video.title}</h3>
+                        <p>${video.description || ""}</p>
+                        <button onclick="editVideo(${video.id})">Edit</button>
+                        <button onclick="deleteVideo(${video.id})" class="delete-btn">Delete</button>
+                    </div>
+                `;
+            });
+        }
+        async function loadMedia() {
+            let res = await fetchWithPin('/api/media', { method: 'GET' });
+            let data = await res.json();
+            data = data.filter(m => m.kind === 'image'); // images only
+            let container = document.getElementById('mediaList');
+            container.innerHTML = '';
+            data.forEach(media => {
+                container.innerHTML += `
+                    <div class="admin-card">
+                        <img src="/uploads/${media.file_path}" class="thumb">
+                        <h3>${media.title}</h3>
+                        <span class="small">${media.kind}</span>
+                        <button onclick="deleteMedia(${media.id})" class="delete-btn">Delete</button>
+                    </div>
+                `;
+            });
+        }
+        async function submitQuickAlbum(event) {
+            event.preventDefault();
+            const form = document.getElementById('quickAlbumForm');
+            const formData = new FormData(form);
+            await fetchWithPin('/api/add_album', { method: 'POST', body: formData });
+            form.reset();
+            loadAlbums();
+        }
+        function populateFeaturedVideoSelect(videos = videosCache) {
+            const select = document.getElementById('featuredVideoSelect');
+            if (!select) return;
+            select.innerHTML = '<option value="">Select a video</option>';
+            videos.forEach(video => {
+                select.innerHTML += `<option value="${video.id}">${video.title}</option>`;
+            });
+            if (featuredVideoId) {
+                select.value = featuredVideoId;
+            }
+        }
+        function updateFeaturedVideoPreview() {
+            const select = document.getElementById('featuredVideoSelect');
+            const preview = document.getElementById('featuredVideoPreview');
+            if (!select || !preview) return;
+            const activeId = featuredVideoId || select.value;
+            if (!activeId) {
+                preview.textContent = 'No video selected.';
+                return;
+            }
+            const video = videosCache.find(v => String(v.id) === String(activeId));
+            if (!video) {
+                preview.textContent = 'Video not found.';
+                return;
+            }
+            featuredVideoId = String(activeId);
+            select.value = featuredVideoId;
+            preview.innerHTML = `<strong>${video.title}</strong><br>${video.description || ''}`;
+        }
+        async function saveFeaturedVideo() {
+            const select = document.getElementById('featuredVideoSelect');
+            if (!select || !select.value) {
+                alert('Please choose a video first.');
+                return;
+            }
+            await fetchWithPin('/api/set_featured_video', {
+                method: 'POST',
+                body: new URLSearchParams({ video_id: select.value })
+            });
+            featuredVideoId = select.value;
+            updateFeaturedVideoPreview();
+            alert('Featured video saved!');
+        }
+        function editVideo(id) {
+            const video = videosCache.find(v => String(v.id) === String(id));
+            if (!video) {
+                alert('Video not found.');
+                return;
+            }
+            openVideoModal(true, video);
+        }
+        document.getElementById('featuredVideoSelect').addEventListener('change', (e) => {
+            featuredVideoId = e.target.value || null;
+            updateFeaturedVideoPreview();
+        });
+
+        function openAlbumModal(isEdit = false, album = null) {
+            document.getElementById('albumModal').style.display = 'flex';
+            document.getElementById('albumModalTitle').textContent = isEdit ? "Edit Album" : "Add Album";
+            document.getElementById('albumId').value = album ? album.id : "";
+            document.getElementById('albumTitle').value = album ? album.title : "";
+            document.getElementById('albumDesc').value = album ? album.description : "";
+            document.getElementById('albumImage').value = "";
+        }
+        function openVideoModal(isEdit = false, video = null) {
+            document.getElementById('videoModal').style.display = 'flex';
+            document.getElementById('videoModalTitle').textContent = isEdit ? "Edit Video" : "Add Video";
+            document.getElementById('videoId').value = video ? video.id : "";
+            document.getElementById('videoTitle').value = video ? video.title : "";
+            document.getElementById('videoDesc').value = video ? (video.description || "") : "";
+            document.getElementById('videoThumbnail').value = video ? (video.thumbnail || "") : "";
+            document.getElementById('videoFile').value = "";
+        }
+        function openTrackModal(albumId) {
+            document.getElementById('trackAlbumId').value = albumId;
+            document.getElementById('trackModal').style.display = 'flex';
+        }
+        function openMediaModal() {
+            document.getElementById('mediaModal').style.display = 'flex';
+            document.getElementById('mediaTitle').value = '';
+            document.getElementById('mediaFile').value = '';
+        }
+        function closeModal(id) {
+            document.getElementById(id).style.display = 'none';
+        }
+        function closeTrackModal() {
+            document.getElementById('trackModal').style.display = 'none';
+        }
+        function openBulkAlbumModal() {
+            bulkTracks = [];
+            document.getElementById('bulkAlbumTitle').value = '';
+            document.getElementById('bulkAlbumDesc').value = '';
+            document.getElementById('bulkAlbumCover').value = '';
+            renderBulkTrackList();
+            document.getElementById('bulkAlbumModal').style.display = 'flex';
+        }
+
+        async function saveAlbum() {
+            let albumId = document.getElementById('albumId').value;
+            let formData = new FormData();
+            formData.append('title', document.getElementById('albumTitle').value);
+            formData.append('description', document.getElementById('albumDesc').value);
+            if (document.getElementById('albumImage').files[0]) {
+                formData.append('image', document.getElementById('albumImage').files[0]);
+            }
+            if (albumId) {
+                formData.append('id', albumId);
+                await fetchWithPin('/api/update_album', {
+                    method: 'POST',
+                    body: formData
+                });
+            } else {
+                await fetchWithPin('/api/add_album', {
+                    method: 'POST',
+                    body: formData
+                });
+            }
+            closeModal('albumModal');
+            loadAlbums();
+        }
+
+        async function saveVideo() {
+            let videoId = document.getElementById('videoId').value;
+            let formData = new FormData();
+            formData.append('title', document.getElementById('videoTitle').value);
+            formData.append('description', document.getElementById('videoDesc').value);
+            formData.append('thumbnail', document.getElementById('videoThumbnail').value);
+            if (document.getElementById('videoFile').files[0]) {
+                formData.append('video', document.getElementById('videoFile').files[0]);
+            }
+            let endpoint = videoId ? '/api/update_video' : '/api/add_video';
+            if (videoId) formData.append('id', videoId);
+            await fetchWithPin(endpoint, { method: 'POST', body: formData });
+            closeModal('videoModal');
+            loadVideos();
+            loadMedia();
+        }
+        async function saveTrack() {
+            let formData = new FormData();
+            formData.append('album_id', document.getElementById('trackAlbumId').value);
+            formData.append('title', document.getElementById('trackTitle').value);
+            if (document.getElementById('trackFile').files[0]) {
+                let uploadData = new FormData();
+                uploadData.append('file', document.getElementById('trackFile').files[0]);
+                uploadData.append('kind', 'audio'); 
+                let res = await fetchWithPin('/api/upload', { method: 'POST', body: uploadData });
+                let result = await res.json();
+                if (result.success) {
+                    formData.append('file', result.filename);
+                } else {
+                    alert('Audio upload failed: ' + (result.error || 'Unknown error'));
+                    return;
+                }
+            }
+            await fetchWithPin('/api/add_track', {
+                method: 'POST',
+                body: formData
+            });
+            closeTrackModal();
+            loadAlbums();
+        }
+
+        async function saveMedia() {
+            let formData = new FormData();
+            formData.append('title', document.getElementById('mediaTitle').value);
+            formData.append('kind', 'image'); 
+            if (document.getElementById('mediaFile').files[0]) {
+                formData.append('file', document.getElementById('mediaFile').files[0]);
+            } else {
+                alert('Please select an image file.');
+                return;
+            }
+            let res = await fetchWithPin('/api/upload', {
+                method: 'POST',
+                body: formData
+            });
+            let result = await res.json();
+            if (!result.success) {
+                alert('Upload failed: ' + (result.error || 'Unknown error'));
+            }
+            closeModal('mediaModal');
+            loadMedia();
+        }
+        async function deleteAlbum(id) {
+            await fetchWithPin('/api/delete', {
+                method: 'POST',
+                body: new URLSearchParams({ type: 'album', id: id })
+            });
+            loadAlbums();
+        }
+        async function deleteVideo(id) {
+            await fetchWithPin('/api/delete', {
+                method: 'POST',
+                body: new URLSearchParams({ type: 'video', id: id })
+            });
+            loadVideos();
+        }
+        async function deleteTrack(trackId, albumId) {
+            await fetchWithPin('/api/delete', {
+                method: 'POST',
+                body: new URLSearchParams({ type: 'track', id: trackId })
+            });
+            loadAlbums();
+        }
+        async function deleteMedia(id) {
+            await fetchWithPin('/api/delete', {
+                method: 'POST',
+                body: new URLSearchParams({ type: 'media', id: id })
+            });
+            loadMedia();
+        }
+        function enableDragSorting() {
+            const oldList = document.getElementById('homepageList');
+            if (!oldList) return;
+            const list = oldList.cloneNode(true);
+            oldList.parentNode.replaceChild(list, oldList);
+            attachDragHandlers(list);
+        }
+        function enableAlbumTrackSorting() {
+            document.querySelectorAll('.track-sortable').forEach(list => {
+                const cloned = list.cloneNode(true);
+                list.parentNode.replaceChild(cloned, list);
+                attachDragHandlers(cloned);
+            });
+        }
+        function attachDragHandlers(listEl) {
+            let draggingEle, placeholder, listRect;
+
+            listEl.addEventListener('dragstart', e => {
+                if (!e.target.classList.contains('sortable-item')) return;
+                draggingEle = e.target;
+                listRect = listEl.getBoundingClientRect();
+                placeholder = document.createElement('div');
+                placeholder.className = 'sortable-placeholder';
+                draggingEle.after(placeholder);
+                requestAnimationFrame(() => draggingEle.classList.add('dragging'));
+            });
+            listEl.addEventListener('dragover', e => {
+                if (!draggingEle) return;
+                e.preventDefault();
+                const y = e.clientY - listRect.top + listEl.scrollTop;
+                const items = [...listEl.querySelectorAll('.sortable-item:not(.dragging)')];
+                const next = items.find(item => y <= item.offsetTop + item.offsetHeight / 2);
+                listEl.insertBefore(placeholder, next || null);
+            });
+            listEl.addEventListener('drop', () => {
+                if (!draggingEle || !placeholder) return;
+                listEl.insertBefore(draggingEle, placeholder);
+                draggingEle.classList.remove('dragging');
+                placeholder.remove();
+                draggingEle = placeholder = null;
+            });
+            listEl.addEventListener('dragend', () => {
+                if (placeholder) placeholder.remove();
+                if (draggingEle) draggingEle.classList.remove('dragging');
+                draggingEle = placeholder = null;
+            });
+        }
+
+        async function saveTrackOrder(albumId) {
+            const list = document.querySelector(`.track-sortable[data-album-id="${albumId}"]`);
+            if (!list) return;
+            const ids = [...list.querySelectorAll('.sortable-item')].map(li => li.dataset.id);
+            await fetchWithPin('/api/reorder', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ type: 'tracks', order: ids, album_id: albumId })
+            });
+            loadAlbums();
+        }
+
+        loadAlbums();
+        loadVideos();
+        loadMedia();
+
+        function renderBulkTrackList() {
+            const list = document.getElementById('bulkTrackList');
+            list.innerHTML = '';
+            bulkTracks.forEach((file, idx) => {
+                const li = document.createElement('li');
+                li.style.display = 'flex';
+                li.style.justifyContent = 'space-between';
+                li.style.alignItems = 'center';
+                li.style.padding = '6px 8px';
+                li.style.background = '#1e1f2f';
+                li.style.borderRadius = '8px';
+                li.style.marginBottom = '6px';
+                li.innerHTML = `<span>${idx + 1}. ${file.name}</span>
+                    <span>
+                        <button class="modal-save-btn" style="padding:4px 8px;" onclick="moveTrack(${idx}, -1)">↑</button>
+                        <button class="modal-save-btn" style="padding:4px 8px;" onclick="moveTrack(${idx}, 1)">↓</button>
+                        <button class="delete-btn" style="padding:4px 8px;" onclick="removeTrack(${idx})">X</button>
+                    </span>`;
+                list.appendChild(li);
+            });
+        }
+
+        function moveTrack(index, delta) {
+            const newIndex = index + delta;
+            if (newIndex < 0 || newIndex >= bulkTracks.length) return;
+            const [item] = bulkTracks.splice(index, 1);
+            bulkTracks.splice(newIndex, 0, item);
+            renderBulkTrackList();
+        }
+
+        function removeTrack(index) {
+            bulkTracks.splice(index, 1);
+            renderBulkTrackList();
+        }
+
+        function handleBulkFiles(files) {
+            Array.from(files).forEach(f => {
+                if (f.type.startsWith('audio/')) bulkTracks.push(f);
+            });
+            renderBulkTrackList();
+        }
+
+        const dropZone = document.getElementById('trackDropZone');
+        const trackInput = document.getElementById('bulkTrackInput');
+        dropZone.addEventListener('click', () => trackInput.click());
+        dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.style.borderColor = '#00ffe7'; });
+        dropZone.addEventListener('dragleave', () => { dropZone.style.borderColor = '#555'; });
+        dropZone.addEventListener('drop', e => {
+            e.preventDefault();
+            dropZone.style.borderColor = '#555';
+            handleBulkFiles(e.dataTransfer.files);
+        });
+        trackInput.addEventListener('change', e => handleBulkFiles(e.target.files));
+
+        async function uploadBulkAlbum() {
+            const title = document.getElementById('bulkAlbumTitle').value.trim();
+            if (!title) { alert('Album title is required.'); return; }
+            if (!bulkTracks.length) { alert('Add at least one track.'); return; }
+            const fd = new FormData();
+            fd.append('title', title);
+            fd.append('description', document.getElementById('bulkAlbumDesc').value);
+            if (document.getElementById('bulkAlbumCover').files[0]) {
+                fd.append('cover', document.getElementById('bulkAlbumCover').files[0]);
+            }
+            bulkTracks.forEach(f => fd.append('tracks', f));
+            await fetchWithPin('/api/add_album_bundle', { method: 'POST', body: fd });
+            closeModal('bulkAlbumModal');
+            loadAlbums();
+        }
+    </script>
+</body>
+</html>
