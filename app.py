@@ -23,7 +23,8 @@ from cryptography.fernet import Fernet
 BASE_DIR = Path(__file__).parent.resolve()
 DB_PATH = BASE_DIR / "site.db"
 SCHEMA_PATH = BASE_DIR / "database" / "schema.sql"  
-UPLOAD_FOLDER = BASE_DIR / "uploads"
+# UPLOAD_FOLDER = BASE_DIR / "uploads"
+UPLOAD_FOLDER = Path("/var/data/uploads")
 ALLOWED_IMAGE = {"png", "jpg", "jpeg", "gif", "svg", "webp"}
 ALLOWED_AUDIO = {"mp3", "wav", "ogg", "m4a"}
 ALLOWED_VIDEO = {"mp4", "webm", "mov", "ogg"}
