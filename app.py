@@ -110,5 +110,30 @@ def reo():
     d.commit()
     return jy({"success":True})
 
+@app.route("/admin", methods=["GET"])
+def admin():
+    if not auth():
+        # Simple login form if not authenticated
+        return rts("""
+        <!DOCTYPE html>
+        <html>
+        <head><title>Admin Login</title></head>
+        <body>
+            <h1>Admin Login</h1>
+            <form method="get" action="/admin">
+                <label for="pin">Enter PIN:</label>
+                <input type="password" name="pin" id="pin" required>
+                <button type="submit">Login</button>
+            </form>
+        </body>
+        </html>
+        """), 401
+    d = db(); c = d.cursor()
+    albums = [dict(r) for r in c.execute("SELECT * FROM albums ORDER BY position").fetchall()]
+    videos = [dict(r) for r in c.execute("SELECT * FROM videos ORDER BY position").fetchall()]
+    media = [dict(r) for r in c.execute("SELECT * FROM media ORDER BY position").fetchall()]
+    layout = [dict(r) for r in c.execute("SELECT * FROM homepage_layout ORDER BY position").fetchall()]
+    return rt("admin.html", albums=albums, videos=videos, media=media, layout=layout, admin_pin=PN)
+
 if __name__=="__main__":
     app.run(debug=True,port=5000)
