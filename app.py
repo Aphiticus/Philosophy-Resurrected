@@ -12,7 +12,7 @@ Provides:
 import os
 import sqlite3
 from flask import (
-    Flask, g, render_template, render_template_string, request, redirect, url_for, jsonify, send_from_directory, abort
+    Flask, g, render_template, render_template_string, request, redirect, url_for, jsonify, send_from_directory, abort, session
 )
 from werkzeug.utils import secure_filename
 from pathlib import Path
@@ -43,6 +43,7 @@ fernet = Fernet(key)
 
 # Require admin pin to be set in environment for security
 ADMIN_PIN = os.environ.get("PR_ADMIN_PIN")
+# REMOVE the following block to allow local/dev use without PR_ADMIN_PIN:
 if not ADMIN_PIN:
     raise RuntimeError("PR_ADMIN_PIN environment variable must be set for admin access. Do not hardcode passwords in code.")
 
@@ -51,7 +52,10 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app = Flask(__name__, static_folder="static")
 app.config["UPLOAD_FOLDER"] = str(UPLOAD_FOLDER)
 app.config["MAX_CONTENT_LENGTH"] = 1024 * 1024 * 1024  
+app.secret_key = os.environ.get("PR_SECRET_KEY", "dev-secret-key")  # For session
 
+# --- Admin password setup ---
+ADMIN_PASSWORD = os.environ.get("PR_ADMIN_PASSWORD", "admin123")  # Default for local use
 
 ADMIN_LOGIN_TEMPLATE = """
 <!DOCTYPE html>
@@ -62,9 +66,10 @@ ADMIN_LOGIN_TEMPLATE = """
 </head>
 <body>
     <h1>Admin Login</h1>
-    <form method="get" action="/admin">
-        <label for="pin">Enter PIN:</label>
-        <input type="password" name="pin" id="pin" required>
+    {% if error %}<div style="color:red;">{{ error }}</div>{% endif %}
+    <form method="post" action="/admin/login">
+        <label for="password">Enter Password:</label>
+        <input type="password" name="password" id="password" required>
         <button type="submit">Login</button>
     </form>
 </body>
@@ -188,13 +193,37 @@ def index():
     media = [dict(m) for m in cur.fetchall()]
     return render_template("index.html", albums=albums, videos=videos, layout=layout, media=media)
 def check_pin():
+    # First, check session for admin login
+    if session.get("admin_logged_in"):
+        return True
+    # Fallback: allow X-Admin-Pin for API compatibility
     provided = request.args.get("pin") or request.form.get("pin") or request.headers.get("X-Admin-Pin")
-    return provided == ADMIN_PIN
+    # Accept either the password or the legacy PIN if set
+    if provided and (provided == ADMIN_PASSWORD or provided == os.environ.get("PR_ADMIN_PIN", "")):
+        return True
+    return False
+
+@app.route("/admin/login", methods=["GET", "POST"])
+def admin_login():
+    error = None
+    if request.method == "POST":
+        password = request.form.get("password", "")
+        if password == ADMIN_PASSWORD:
+            session["admin_logged_in"] = True
+            return redirect(url_for("admin_page"))
+        else:
+            error = "Incorrect password."
+    return render_template_string(ADMIN_LOGIN_TEMPLATE, error=error)
+
+@app.route("/admin/logout")
+def admin_logout():
+    session.pop("admin_logged_in", None)
+    return redirect(url_for("admin_login"))
 
 @app.route("/admin", methods=["GET"])
 def admin_page():
     if not check_pin():
-        return render_template_string(ADMIN_LOGIN_TEMPLATE), 401
+        return redirect(url_for("admin_login"))
     db = get_db()
     cur = db.cursor()
     cur.execute("SELECT * FROM albums ORDER BY position ASC")
