@@ -353,51 +353,69 @@ body {
 }
 .album-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
     gap: 2rem;
+    width: 100%;
+    margin: 0 auto;
 }
 .album-card {
     background: #23243a;
     border-radius: 18px;
     box-shadow: 0 4px 24px rgba(0,0,0,0.12);
-    padding: 2rem 1.5rem;
+    padding: 1.2rem 1rem;
     transition: transform 0.2s, box-shadow 0.2s;
-}
-.album-card:hover {
-    transform: translateY(-6px) scale(1.03);
-    box-shadow: 0 8px 32px rgba(255,0,200,0.12);
+    max-width: 340px;
+    width: 100%;
+    margin: 0 auto;
+    word-break: break-word;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }
 .album-cover {
     width: 100%;
-    max-width: 220px;
+    max-width: 180px;
     border-radius: 12px;
     margin-bottom: 1rem;
     box-shadow: 0 2px 12px rgba(255,0,200,0.08);
+    object-fit: cover;
 }
 .album-card h3 {
-    font-size: 1.2rem;
+    font-size: 1.1rem;
     color: #00ffe7;
     margin: 0.5rem 0;
+    text-align: center;
+    word-break: break-word;
 }
 .album-card p {
     color: #e0e0e0;
-    font-size: 1rem;
+    font-size: 0.98rem;
+    text-align: center;
+    margin-bottom: 0.7rem;
+    word-break: break-word;
+    overflow-wrap: break-word;
 }
 .track-list {
     list-style: none;
     padding: 0;
     margin: 1rem 0 0 0;
+    width: 100%;
 }
 .track-list li {
-    margin-bottom: 0.7rem;
+    margin-bottom: 0.5rem;
     display: flex;
     align-items: center;
-    gap: 1rem;
+    gap: 0.7rem;
+    font-size: 0.92rem;
+    flex-wrap: wrap;
+    word-break: break-word;
 }
 .track-list span {
     color: #ff00c8;
     font-weight: 500;
-    font-size: 1rem;
+    font-size: 0.95rem;
+    word-break: break-word;
 }
 .video-grid {
     display: grid;
