@@ -146,6 +146,7 @@
         let featuredVideoId = null;
         let videosCache = [];
         let bulkTracks = [];
+        let albumsCache = []; // <-- Add this line
 
         function fetchWithPin(url, options = {}) {
             options.headers = options.headers || {};
@@ -161,6 +162,7 @@
         async function loadAlbums() {
             let res = await fetch('/api/albums');
             let data = await res.json();
+            albumsCache = data; // <-- Store albums for editing
 
             let container = document.getElementById('albumsList');
             container.innerHTML = '';
