@@ -17,7 +17,6 @@ from flask import (
 from werkzeug.utils import secure_filename
 from pathlib import Path
 import datetime
-from cryptography.fernet import Fernet
 
 
 BASE_DIR = Path(__file__).parent.resolve()
@@ -28,17 +27,6 @@ UPLOAD_FOLDER = Path("/var/data/uploads")
 ALLOWED_IMAGE = {"png", "jpg", "jpeg", "gif", "svg", "webp"}
 ALLOWED_AUDIO = {"mp3", "wav", "ogg", "m4a"}
 ALLOWED_VIDEO = {"mp4", "webm", "mov", "ogg"}
-
-# Encryption key setup
-KEY_PATH = BASE_DIR / "filekey.key"
-if not KEY_PATH.exists():
-    key = Fernet.generate_key()
-    with open(KEY_PATH, "wb") as keyfile:
-        keyfile.write(key)
-else:
-    with open(KEY_PATH, "rb") as keyfile:
-        key = keyfile.read()
-fernet = Fernet(key)
 
 
 # Require admin pin to be set in environment for security
@@ -123,7 +111,7 @@ def allowed_file(filename, kind):
         return ext in ALLOWED_VIDEO
     return False
 
-def save_upload(file_storage):
+def save_upload(file_storage, kind="image"):
     filename = secure_filename(file_storage.filename)
     if not filename:
         return None
@@ -134,12 +122,15 @@ def save_upload(file_storage):
         filename = f"{base}_{counter}{ext}"
         save_path = Path(app.config["UPLOAD_FOLDER"]) / filename
         counter += 1
-    # Encrypt file data before saving
-    file_data = file_storage.read()
-    encrypted_data = fernet.encrypt(file_data)
+
+    # Always stream file directly to disk, no encryption
     with open(save_path, "wb") as f:
-        f.write(encrypted_data)
-    file_storage.stream.seek(0)  # Reset stream in case needed elsewhere
+        while True:
+            chunk = file_storage.stream.read(4096)
+            if not chunk:
+                break
+            f.write(chunk)
+    file_storage.stream.seek(0)
     return filename
 
 def delete_file_if_exists(filename):
@@ -162,16 +153,19 @@ def uploaded_file(filename):
     if not file_path.exists():
         abort(404)
     try:
-        with open(file_path, "rb") as f:
-            encrypted_data = f.read()
-        decrypted_data = fernet.decrypt(encrypted_data)
-        # Guess mimetype from extension
         import mimetypes
         mime, _ = mimetypes.guess_type(str(file_path))
         from flask import Response
-        return Response(decrypted_data, mimetype=mime or "application/octet-stream")
+        def generate():
+            with open(file_path, "rb") as f:
+                while True:
+                    chunk = f.read(4096)
+                    if not chunk:
+                        break
+                    yield chunk
+        return Response(generate(), mimetype=mime or "application/octet-stream")
     except Exception as e:
-        print(f"Failed to decrypt or send file: {e}")
+        print(f"Failed to send file: {e}")
         abort(500)
 
 @app.route("/")
@@ -252,7 +246,7 @@ def api_upload():
     if not allowed_file(f.filename, kind):
         print(f"File type not allowed: {f.filename} for kind {kind}") 
         return jsonify({"error": f"file type not allowed for kind '{kind}'"}), 400
-    filename = save_upload(f)
+    filename = save_upload(f, kind=kind)
     if not filename:
         print("Save failed") 
         return jsonify({"error": "save failed"}), 500
