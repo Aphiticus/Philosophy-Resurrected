@@ -154,16 +154,50 @@ def uploaded_file(filename):
         abort(404)
     try:
         import mimetypes
+        from flask import Response, request, make_response
         mime, _ = mimetypes.guess_type(str(file_path))
-        from flask import Response
-        def generate():
-            with open(file_path, "rb") as f:
-                while True:
-                    chunk = f.read(4096)
-                    if not chunk:
-                        break
-                    yield chunk
-        return Response(generate(), mimetype=mime or "application/octet-stream")
+        file_size = file_path.stat().st_size
+        range_header = request.headers.get('Range', None)
+        if range_header:
+            # Example: Range: bytes=0-1023
+            bytes_range = range_header.replace('bytes=', '').split('-')
+            try:
+                start = int(bytes_range[0]) if bytes_range[0] else 0
+                end = int(bytes_range[1]) if len(bytes_range) > 1 and bytes_range[1] else file_size - 1
+            except ValueError:
+                start, end = 0, file_size - 1
+            end = min(end, file_size - 1)
+            length = end - start + 1
+            CHUNK_SIZE = 65536  # 64KB
+            def partial_gen():
+                with open(file_path, 'rb') as f:
+                    f.seek(start)
+                    remaining = length
+                    while remaining > 0:
+                        chunk_size = min(CHUNK_SIZE, remaining)
+                        chunk = f.read(chunk_size)
+                        if not chunk:
+                            break
+                        yield chunk
+                        remaining -= len(chunk)
+            resp = Response(partial_gen(), status=206, mimetype=mime or 'application/octet-stream')
+            resp.headers.add('Content-Range', f'bytes {start}-{end}/{file_size}')
+            resp.headers.add('Accept-Ranges', 'bytes')
+            resp.headers.add('Content-Length', str(length))
+            return resp
+        else:
+            CHUNK_SIZE = 65536  # 64KB
+            def full_gen():
+                with open(file_path, 'rb') as f:
+                    while True:
+                        chunk = f.read(CHUNK_SIZE)
+                        if not chunk:
+                            break
+                        yield chunk
+            resp = Response(full_gen(), mimetype=mime or 'application/octet-stream')
+            resp.headers.add('Content-Length', str(file_size))
+            resp.headers.add('Accept-Ranges', 'bytes')
+            return resp
     except Exception as e:
         print(f"Failed to send file: {e}")
         abort(500)
